@@ -1,0 +1,13 @@
+[Unit]
+Description=Apache Kafka Broker
+After=network.target zookeeper.service
+
+[Service]
+Type=simple
+User={{ kafka_user }}
+ExecStart={{ kafka_dir }}/bin/kafka-server-start.sh {{ kafka_dir }}/config/server.properties
+Restart=on-failure
+LimitNOFILE=100000
+
+[Install]
+WantedBy=multi-user.target

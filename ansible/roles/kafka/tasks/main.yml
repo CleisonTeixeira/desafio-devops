@@ -1,0 +1,170 @@
+---
+- name: Instalar dependências
+  apt:
+    name:
+      - curl
+      - tar
+      - "{{ kafka_java_pkg | default('openjdk-17-jre-headless') }}"
+    state: present
+    update_cache: yes
+  become: yes
+
+- name: Criar usuário do Kafka (sistema)
+  user:
+    name: "{{ kafka_user }}"
+    system: yes
+    create_home: no
+    shell: /usr/sbin/nologin
+  become: yes
+
+- name: Criar diretórios de dados e instalação
+  file:
+    path: "{{ item }}"
+    state: directory
+    owner: "{{ kafka_user }}"
+    group: "{{ kafka_user }}"
+    mode: "0755"
+  loop:
+    - "{{ kafka_dir }}"
+    - "{{ kafka_data_dir }}"
+    - "{{ zookeeper_data_dir }}"
+  become: yes
+
+
+- name: Baixar Kafka (URL primária)
+  get_url:
+    url: "{{ kafka_urls[0] }}"
+    dest: "/tmp/{{ kafka_tgz }}"
+    mode: '0644'
+    timeout: 60
+    force: yes
+  register: dl_primary
+  retries: 3
+  delay: 5
+  until: dl_primary is succeeded
+  ignore_errors: true
+  become: yes
+
+- name: Baixar Kafka (fallback se primário falhar)
+  when: dl_primary is failed
+  get_url:
+    url: "{{ kafka_urls[1] }}"
+    dest: "/tmp/{{ kafka_tgz }}"
+    mode: '0644'
+    timeout: 60
+    force: yes
+  register: dl_fallback
+  retries: 3
+  delay: 5
+  until: dl_fallback is succeeded
+  become: yes
+
+- name: Definir caminho do arquivo baixado
+  set_fact:
+    kafka_tgz_path: "/tmp/{{ kafka_tgz }}"
+
+- name: Validar que o arquivo é um gzip
+  command: "file -b --mime-type {{ kafka_tgz_path }}"
+  register: kafka_mime
+  changed_when: false
+  become: yes
+
+- name: Falhar se o arquivo baixado não for um tar.gz válido
+  fail:
+    msg: "Arquivo baixado não é um tar.gz válido (MIME={{ kafka_mime.stdout }})"
+  when: kafka_mime.stdout != "application/gzip"
+
+
+- name: Remover diretório de instalação para garantir idempotência
+  file:
+    path: "{{ kafka_dir }}"
+    state: absent
+  become: yes
+
+- name: Recriar diretório de instalação
+  file:
+    path: "{{ kafka_dir }}"
+    state: directory
+    owner: "{{ kafka_user }}"
+    group: "{{ kafka_user }}"
+    mode: "0755"
+  become: yes
+
+- name: Extrair Kafka para {{ kafka_dir }}
+  unarchive:
+    src: "{{ kafka_tgz_path }}"
+    dest: "{{ kafka_dir }}"
+    remote_src: yes
+    extra_opts: [ "--strip-components=1" ]
+  become: yes
+
+- name: Ajustar permissões de {{ kafka_dir }}
+  file:
+    path: "{{ kafka_dir }}"
+    owner: "{{ kafka_user }}"
+    group: "{{ kafka_user }}"
+    recurse: yes
+  become: yes
+
+
+- name: Configurar ZooKeeper (dataDir)
+  lineinfile:
+    path: "{{ kafka_dir }}/config/zookeeper.properties"
+    regexp: '^dataDir='
+    line: "dataDir={{ zookeeper_data_dir }}"
+    create: yes
+  notify: restart zookeeper
+  become: yes
+
+- name: Configurar Kafka server.properties
+  blockinfile:
+    path: "{{ kafka_dir }}/config/server.properties"
+    block: |
+      broker.id={{ broker_id }}
+      listeners=PLAINTEXT://0.0.0.0:9092
+      advertised.listeners={{ advertised_listeners }}
+      log.dirs={{ kafka_data_dir }}
+      zookeeper.connect=127.0.0.1:2181
+    create: yes
+  notify: restart kafka
+  become: yes
+
+
+- name: Instalar serviço ZooKeeper (systemd)
+  template:
+    src: zookeeper.service.j2
+    dest: /etc/systemd/system/zookeeper.service
+    owner: root
+    group: root
+    mode: "0644"
+  notify: restart zookeeper
+  become: yes
+
+- name: Instalar serviço Kafka (systemd)
+  template:
+    src: kafka.service.j2
+    dest: /etc/systemd/system/kafka.service
+    owner: root
+    group: root
+    mode: "0644"
+  notify: restart kafka
+  become: yes
+
+- name: Recarregar systemd
+  systemd:
+    daemon_reload: yes
+  become: yes
+
+- name: Habilitar e iniciar ZooKeeper
+  systemd:
+    name: zookeeper
+    state: started
+    enabled: yes
+  become: yes
+
+- name: Habilitar e iniciar Kafka
+  systemd:
+    name: kafka
+    state: started
+    enabled: yes
+  become: yes

@@ -1,0 +1,12 @@
+---
+- name: restart zookeeper
+  become: yes
+  systemd:
+    name: zookeeper
+    state: restarted
+
+- name: restart kafka
+  become: yes
+  systemd:
+    name: kafka
+    state: restarted
