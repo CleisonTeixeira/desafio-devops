@@ -2,5 +2,28 @@
 - name: Configurar Kafka + ZooKeeper
   hosts: kafka
   become: true
+  gather_facts: true
+
+  pre_tasks:
+    - name: Aguardar cloud-init finalizar (se existir)
+      command: cloud-init status --wait
+      register: ci
+      changed_when: false
+      failed_when: false
+
+    - name: Aguardar liberação dos locks do apt/dpkg
+      shell: |
+        while fuser /var/lib/apt/lists/lock >/dev/null 2>&1 || \
+              fuser /var/lib/dpkg/lock >/dev/null 2>&1 || \
+              fuser /var/lib/dpkg/lock-frontend >/dev/null 2>&1; do
+          sleep 3
+        done
+      changed_when: false
+
+    - name: Garantir dpkg configurado
+      shell: dpkg --configure -a
+      changed_when: false
+      failed_when: false
+
   roles:
     - kafka

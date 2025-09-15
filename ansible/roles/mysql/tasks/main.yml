@@ -4,12 +4,20 @@
     name: mysql-server
     state: present
     update_cache: yes
+    cache_valid_time: 3600
+    lock_timeout: 600
+  retries: 5
+  delay: 5
+  register: apt_mysql
+  until: apt_mysql is succeeded
+  become: yes
 
 - name: Garantir MySQL em execução
   service:
     name: mysql
     state: started
     enabled: yes
+  become: yes
 
 - name: Configurar bind-address
   template:
@@ -19,13 +27,20 @@
     group: root
     mode: "0644"
   notify: restart mysql
+  become: yes
+
 
 - name: Definir senha do root (modo simplificado, Ubuntu auth_socket)
-  command: mysql -uroot -e "ALTER USER 'root'@'localhost' IDENTIFIED WITH mysql_native_password BY '{{ mysql_root_password }}'; FLUSH PRIVILEGES;"
+  command: >
+    mysql -uroot -e "ALTER USER 'root'@'localhost'
+    IDENTIFIED WITH mysql_native_password BY '{{ mysql_root_password }}';
+    FLUSH PRIVILEGES;"
   args:
     creates: /root/.mysql_root_set
+  become: yes
 
 - name: Marcar senha root configurada
   file:
     path: /root/.mysql_root_set
     state: touch
+  become: yes

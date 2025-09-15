@@ -7,6 +7,12 @@
       - "{{ kafka_java_pkg | default('openjdk-17-jre-headless') }}"
     state: present
     update_cache: yes
+    cache_valid_time: 3600
+    lock_timeout: 600
+  retries: 5
+  delay: 5
+  register: apt_kafka
+  until: apt_kafka is succeeded
   become: yes
 
 - name: Criar usuário do Kafka (sistema)
@@ -95,7 +101,7 @@
     src: "{{ kafka_tgz_path }}"
     dest: "{{ kafka_dir }}"
     remote_src: yes
-    extra_opts: [ "--strip-components=1" ]
+    extra_opts: ["--strip-components=1"]
   become: yes
 
 - name: Ajustar permissões de {{ kafka_dir }}
