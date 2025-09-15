@@ -1,11 +1,20 @@
 ---
+- name: Atualizar cache APT (idempotente)
+  apt:
+    update_cache: yes
+    cache_valid_time: 3600
+    force_apt_get: yes
+  retries: 5
+  delay: 5
+  register: apt_update_mysql
+  until: apt_update_mysql is succeeded
+  become: yes
+
 - name: Instalar MySQL Server
   apt:
     name: mysql-server
     state: present
-    update_cache: yes
-    cache_valid_time: 3600
-    lock_timeout: 600
+    force_apt_get: yes
   retries: 5
   delay: 5
   register: apt_mysql
@@ -28,7 +37,6 @@
     mode: "0644"
   notify: restart mysql
   become: yes
-
 
 - name: Definir senha do root (modo simplificado, Ubuntu auth_socket)
   command: >

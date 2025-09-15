@@ -1,4 +1,15 @@
 ---
+- name: Atualizar cache APT (idempotente)
+  apt:
+    update_cache: yes
+    cache_valid_time: 3600
+    force_apt_get: yes
+  retries: 5
+  delay: 5
+  register: apt_update_kafka
+  until: apt_update_kafka is succeeded
+  become: yes
+
 - name: Instalar dependências
   apt:
     name:
@@ -6,9 +17,7 @@
       - tar
       - "{{ kafka_java_pkg | default('openjdk-17-jre-headless') }}"
     state: present
-    update_cache: yes
-    cache_valid_time: 3600
-    lock_timeout: 600
+    force_apt_get: yes
   retries: 5
   delay: 5
   register: apt_kafka
@@ -36,7 +45,7 @@
     - "{{ zookeeper_data_dir }}"
   become: yes
 
-
+# --- Download robusto ---
 - name: Baixar Kafka (URL primária)
   get_url:
     url: "{{ kafka_urls[0] }}"
@@ -80,7 +89,7 @@
     msg: "Arquivo baixado não é um tar.gz válido (MIME={{ kafka_mime.stdout }})"
   when: kafka_mime.stdout != "application/gzip"
 
-
+# --- Extração idempotente ---
 - name: Remover diretório de instalação para garantir idempotência
   file:
     path: "{{ kafka_dir }}"
@@ -112,7 +121,7 @@
     recurse: yes
   become: yes
 
-
+# --- Configuração ---
 - name: Configurar ZooKeeper (dataDir)
   lineinfile:
     path: "{{ kafka_dir }}/config/zookeeper.properties"
@@ -135,7 +144,7 @@
   notify: restart kafka
   become: yes
 
-
+# --- systemd ---
 - name: Instalar serviço ZooKeeper (systemd)
   template:
     src: zookeeper.service.j2
