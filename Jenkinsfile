@@ -60,7 +60,13 @@ EOF
         }
       }
     }
-
+    
+    stage('Esperar instâncias estabilizarem') {
+      when { expression { return !params.DESTROY } }
+      steps {   
+        sleep time: 30, unit: 'SECONDS' }
+    }
+    
     stage('Gerar Inventário Ansible') {
       when { expression { return !params.DESTROY } }
       steps {
