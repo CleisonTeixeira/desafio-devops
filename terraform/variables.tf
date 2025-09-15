@@ -20,5 +20,5 @@ variable "instance_type" {
 
 variable "my_ip_cidr" {
   type        = string
-  description = "177.198.159.60/32 para SSH"
+  description = "177.198.159.60/32"
 }
