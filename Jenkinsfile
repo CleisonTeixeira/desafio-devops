@@ -10,19 +10,41 @@ pipeline {
     TF_INPUT = 'false'
     TF_VAR_project = 'desafio-devops'
     AWS_REGION = 'us-east-1'
-    // Se usar credentials do Jenkins, mapeie via withCredentials nos steps.
   }
 
   stages {
+
     stage('Checkout') {
-      steps { checkout scm }
+      steps {
+        // usa o SCM configurado no job (já autenticando com github-pat se estiver no job)
+        checkout scm
+      }
+    }
+
+    stage('Preparar tfvars (credenciais)') {
+      steps {
+        withCredentials([
+          string(credentialsId: 'tf-public-key', variable: 'TF_PUBLIC_KEY'),
+          string(credentialsId: 'tf-my-ip-cidr', variable: 'TF_MY_IP_CIDR')
+        ]) {
+          sh '''
+            set -e
+            cat > terraform/terraform.auto.tfvars <<EOF
+public_key = "${TF_PUBLIC_KEY}"
+my_ip_cidr = "${TF_MY_IP_CIDR}"
+EOF
+            echo "[INFO] Gerado terraform/terraform.auto.tfvars"
+          '''
+        }
+      }
     }
 
     stage('Terraform Init & Plan') {
       steps {
         dir('terraform') {
           sh '''
-            terraform init -input=false
+            set -e
+            terraform init -input=false -reconfigure
             terraform validate
             terraform plan -out=tf.plan
           '''
@@ -43,8 +65,12 @@ pipeline {
       when { expression { return !params.DESTROY } }
       steps {
         dir('ansible') {
-          sh './generate_inventory.sh'
-          sh 'cat inventories/hosts.ini'
+          sh '''
+            set -e
+            ./generate_inventory.sh
+            echo "=== inventories/hosts.ini ==="
+            cat inventories/hosts.ini
+          '''
         }
       }
     }
@@ -54,6 +80,7 @@ pipeline {
       steps {
         dir('ansible') {
           sh '''
+            set -e
             ansible --version
             ansible-playbook -i inventories/hosts.ini playbooks/mysql.yml
             ansible-playbook -i inventories/hosts.ini playbooks/kafka.yml
@@ -67,6 +94,7 @@ pipeline {
       steps {
         dir('ansible') {
           sh '''
+            set -e
             ansible -i inventories/hosts.ini mysql -m shell -a "systemctl is-active mysql"
             ansible -i inventories/hosts.ini kafka -m shell -a "systemctl is-active kafka"
           '''
@@ -86,7 +114,7 @@ pipeline {
 
   post {
     always {
-      archiveArtifacts artifacts: 'ansible/inventories/hosts.ini', allowEmptyArchive: true
+      archiveArtifacts artifacts: 'terraform/tf.plan,ansible/inventories/hosts.ini', allowEmptyArchive: true
     }
   }
 }
