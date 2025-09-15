@@ -15,8 +15,7 @@ pipeline {
   stages {
 
     stage('Checkout') {
-      steps {
-        // usa o SCM configurado no job (já autenticando com github-pat se estiver no job)
+      steps { 
         checkout scm
       }
     }

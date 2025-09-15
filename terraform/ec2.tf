@@ -1,4 +1,3 @@
-# AMI Ubuntu 22.04 LTS mais recente
 data "aws_ami" "ubuntu2204" {
   owners      = ["099720109477"] # Canonical
   most_recent = true
@@ -19,7 +18,6 @@ data "aws_ami" "ubuntu2204" {
   }
 }
 
-# Par de chaves (usa sua chave pública gerada no WSL)
 resource "aws_key_pair" "this" {
   key_name   = "${var.project}-kp"
   public_key = var.public_key

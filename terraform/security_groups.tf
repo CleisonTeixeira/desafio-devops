@@ -3,7 +3,7 @@ resource "aws_security_group" "common" {
   description = "Acessos do desafio"
   vpc_id      = aws_vpc.main.id
 
-  # SSH (seu IP)
+  
   ingress {
     description = "SSH"
     from_port   = 22
@@ -12,7 +12,7 @@ resource "aws_security_group" "common" {
     cidr_blocks = [var.my_ip_cidr]
   }
 
-  # MySQL
+  
   ingress {
     description = "MySQL"
     from_port   = 3306
@@ -21,7 +21,7 @@ resource "aws_security_group" "common" {
     cidr_blocks = ["0.0.0.0/0"]
   }
 
-  # Kafka (broker + zookeeper)
+  
   ingress {
     description = "Kafka 9092"
     from_port   = 9092
