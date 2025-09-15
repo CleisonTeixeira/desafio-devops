@@ -78,7 +78,7 @@ desafio-devops/
 - Terraform versão 1.6 ou superior.  
 - Ansible versão 2.14 ou superior.  
 - AWS CLI v2 configurado.  
-- Jenkins instalado (local no WSL ou via Docker).  
+- Jenkins instalado.  
 
 ---
 
