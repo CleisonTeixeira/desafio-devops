@@ -74,7 +74,7 @@ desafio-devops/
  Pré-requisitos
 
 - Conta AWS com credenciais de administrador.  
-- Chave SSH gerada previamente (`id_ed25519`).  
+- Chave SSH gerada previamente.  
 - Terraform versão 1.6 ou superior.  
 - Ansible versão 2.14 ou superior.  
 - AWS CLI v2 configurado.  
